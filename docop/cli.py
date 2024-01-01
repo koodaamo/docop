@@ -91,20 +91,20 @@ def tasks(ctx):
     if packaged_tasks:
         print("\n[bold]Packaged tasks:[/]")
         for task_ref in packaged_tasks:
-            doc_str = get_ep_docstring(task_ref)
+            doc_str, _ = get_ep_docstring(task_ref)
             print(f"{task_ref.name}: {doc_str}")
 
     if restricted_tasks:
         print("\n[bold]Packaged restricted-license tasks:[/]")
         for task_ref in restricted_tasks:
-            doc_str = get_ep_docstring(task_ref)
+            doc_str, _ = get_ep_docstring(task_ref)
             print(f"{task_ref.name}: {doc_str}")
 
     if module_tasks:
         print("\n[bold]Your local custom tasks:[/]")
         for task_path in module_tasks:
             name = task_path.name[:-3]
-            doc_str = get_module_docstring(task_path)
+            doc_str, _ = get_module_docstring(task_path)
             print(f"{name}: {doc_str}")
     if not packaged_tasks and not restricted_tasks and not module_tasks:
         echo("No tasks found.")
@@ -188,7 +188,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
             else:
                 path = content_root / content_path
             if path.is_dir():
-                content_queue.append(Collection(path))
+                content_queue.append((path.name, Collection(path)))
             elif path.is_file():
                 if path.parent not in partial_collections:
                     partial_collections[path.parent] = Collection(path.parent, autoload=False)
@@ -196,10 +196,10 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
             else:
                 echo(f"Content path '{path}' not found.")
                 return
-        content_queue.extend(partial_collections.values())
+        content_queue.extend(tuple(partial_collections.items()))
 
     if content_queue:
-        summary = ", ".join((c.name + f" ({len(c)} documents)" for c in content_queue))
+        summary = ", ".join((name + f" ({len(c)} documents)" for name, c in content_queue))
         print(" • will process %i collections: %s" % (len(content_queue), summary), end='')
 
     #
@@ -253,11 +253,11 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
             except SyntaxError as exc:
                 print(f" ⚠️  [bold red]task has error[/]:", exc.msg)
                 return
-            docstr = get_module_docstring(task_path)
+            docstr, _ = get_module_docstring(task_path)
         else: # task in (packaged_tasks + restricted_tasks)
             spec = find_spec(task_eps[task].module)
             code = spec.loader.get_code(task_eps[task].module)
-            docstr = get_ep_docstring(task_eps[task])
+            docstr, _ = get_ep_docstring(task_eps[task])
 
         print("\n", Panel(f"\n⚙️  [bold]Task {counter} ({task}) → {docstr}\n"))
 
@@ -329,8 +329,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         # If there is a target queue waiting, let the last task of the pipe do exporting
         if not source_queue and not (target_queue and counter == pipesize):
 
-            for collection in content_queue:
-                print(f"Processing '{collection.name}' content collection")
+            for name, collection in content_queue:
+                print(f"Processing '{name}' content collection")
                 proc_ctx = {"collection": collection}
                 if account:
                     proc_ctx["account"] = account
@@ -356,8 +356,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
             for targetname, target in target_queue:
                 print(f"Targeting '{targetname}' ...")
 
-                for title, collection in content_queue:
-                    print(f" ↳ Processing '{title}' content collection")
+                for name, collection in content_queue:
+                    print(f" ↳ Processing '{name}' content collection")
 
                     export_ctx = {
                         "collection": collection,

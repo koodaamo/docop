@@ -25,16 +25,27 @@ def merge(dict1, dict2):
     return result
 
 
-def get_module_docstring(path:Path):
+def get_module_docstring(path:Path, split:bool=True):
     "get doc string from a python module at path"
     with open(path) as module:
         source = module.read()
     parsed = ast.parse(source)
-    docstr =  ast.get_docstring(parsed)
+    docstr =  ast.get_docstring(parsed) or []
     if not docstr:
-        firstline = source.split("\n", maxsplit=1)[0].strip()
-        docstr = firstline.lstrip("# ") if firstline.startswith("#") else None
-    return docstr
+        lines = [line.strip() for line in source.split("\n") if len(line.strip()) > 0]
+        while lines:
+            line = lines.pop(0)
+            if line and line[0] == "#":
+                docstr.append(line[1:].strip())
+            else:
+                break
+    else:
+        docstr = [line.strip() for line in docstr.split("\n")]
+    if split:
+        return (docstr[0], "\n".join(docstr[1:]))
+    else:
+        return '\n'.join(docstr)
+
 
 def get_ep_docstring(ep):
     "get doc string of a python module represented by ep"
