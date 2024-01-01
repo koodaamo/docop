@@ -265,10 +265,10 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         # HANDLE CASE WHEN NO SOURCES OR CONTENT OR TARGETS ARE PROVIDED
         #
         if not (source_queue or content_queue or target_queue):
-            ctx = deepcopy(config_ctx)
-            ctx["account"] = account
+            exec_ctx= deepcopy(config_ctx)
+            exec_ctx["account"] = account
             try:
-                exec(code, ctx)
+                exec(code, exec_ctx)
             except Exception as e:
                 print("⚠️  [bold red]Task run failed: %s[/]" % e)
             return
@@ -303,20 +303,20 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     collection._modified = False
                     doc._modified = False
                     retrieval_ctx["document"] = doc
-                    ctx = merge(retrieval_ctx, config_ctx)
+                    exec_ctx= merge(retrieval_ctx, config_ctx)
                     try:
-                        exec(code, ctx)
+                        exec(code, exec_ctx)
                     except Exception as e:
                         print("⚠️  [bold red]Task run failed: %s[/]" % e)
                         return
                     else:
                         # If the task added documents, we're done with this source.
-                        if ctx['collection'].modified:
+                        if exec_ctx['collection'].modified:
                             break
                         # Otherwise, we'll store the doc that the task modified.
-                        if ctx["document"].modified:
+                        if exec_ctx["document"].modified:
                             print(f"↳ fetched \'{doc['title']}\' ✅")
-                            collection += ctx["document"]
+                            collection += exec_ctx["document"]
                             print(f"↳ result at {doc._path} ✅")
 
                 content_queue.append((sourcename, collection))
@@ -338,14 +338,14 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                 for count, (doc_name, doc) in enumerate(collection.items(), start=1):
                     doc._modified = False
                     proc_ctx["document"] = doc
-                    ctx = merge(proc_ctx, config_ctx)
+                    exec_ctx= merge(proc_ctx, config_ctx)
                     try:
-                        exec(code, ctx)
+                        exec(code, exec_ctx)
                     except Exception as e:
                         print(f"⚠️  [bold red]failed to process content[/] '{doc}': %s" % e)
                     else:
-                        if ctx["document"].modified:
-                            ctx["document"].sync()
+                        if exec_ctx["document"].modified:
+                            exec_ctx["document"].sync()
             continue
 
         #
@@ -373,10 +373,10 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                             print(f"⚠️  [bold red]account {exc} not found")
                             return
 
-                    ctx = merge(export_ctx, config_ctx)
+                    exec_ctx= merge(export_ctx, config_ctx)
 
                     try:
-                        exec(code, ctx)
+                        exec(code, exec_ctx)
                     except Exception as exc:
                         print("⚠️  [bold red]task failed[/] %s" % exc)
                         return
