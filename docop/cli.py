@@ -226,8 +226,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         "extras": extras,
         "sources": deepcopy(source_queue),
         "targets": deepcopy(target_queue),
-        "content": deepcopy(content_queue),
-        "pipeline": {}
+        "content": deepcopy(content_queue)
     }
 
     #
@@ -236,6 +235,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
     tasklist = ' → '.join((task for task in pipe["tasks"]))
     print(f"\n • will run {len(pipe['tasks'])} tasks: [bold]{tasklist}[/]")
+
+    pipe_ctx = {}
 
     for counter, task in enumerate(pipe["tasks"], start=1):
         #
@@ -262,10 +263,14 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         if not (source_queue or content_queue or target_queue):
             exec_ctx= deepcopy(config_ctx)
             exec_ctx["account"] = account
+            exec_ctx["pipeline"] = pipe_ctx
             try:
                 exec(code, exec_ctx)
             except Exception as e:
                 print("⚠️  [bold red]Task run failed: %s[/]" % e)
+            else:
+                pipe_ctx = exec_ctx["pipeline"]
+
 
         #
         #  PIPELINE SUBLOOP 1: PROCESS EACH SOURCE
@@ -279,7 +284,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
                 retrieval_ctx = {
                     "source": source,
-                    "collection": collection
+                    "collection": collection,
+                    "pipeline": pipe_ctx
                 }
                 if account:
                     retrieval_ctx["account"] = account
@@ -303,6 +309,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                         print("⚠️  [bold red]Task run failed: %s[/]" % e)
                         return
                     else:
+                        pipe_ctx = retrieval_ctx["pipeline"]
                         # If the task added documents, we're done with this source.
                         if retrieval_ctx['collection'].modified:
                             break
@@ -322,7 +329,10 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         if not source_queue and not (target_queue and counter == pipesize):
             for name, collection in content_queue:
                 print(f"Processing '{name}' content collection ...")
-                proc_ctx = {"collection": collection}
+                proc_ctx = {
+                    "collection": collection,
+                    "pipeline": pipe_ctx
+                }
                 if account:
                     proc_ctx["account"] = account
 
@@ -334,6 +344,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     except Exception as e:
                         print(f"⚠️  [bold red]failed to process content[/] '{doc}': %s" % e)
                     else:
+                        pipe_ctx = proc_ctx["pipeline"]
                         if proc_ctx["document"].modified:
                             proc_ctx["document"].sync()
                             print(f"↳ '{doc['title']}' ✅")
@@ -344,12 +355,13 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         #
         if target_queue:
             for targetname, target in target_queue:
-                print(f"Targeting '{targetname}' ...")
+                print(f"Exporting to '{targetname}' ...")
                 for name, collection in content_queue:
                     print(f" ↳ Processing '{name}' content collection")
                     export_ctx = {
                         "collection": collection,
-                        "target": target
+                        "target": target,
+                        "pipeline": pipe_ctx
                     }
                     if account:
                         export_ctx["account"] = account
@@ -364,6 +376,9 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     except Exception as exc:
                         print("⚠️  [bold red]task failed[/] %s" % exc)
                         return
+                    else:
+                        pipe_ctx = export_ctx["pipeline"]
+                        print(f"↳ exported '{name}' ✅")
 
 
 @docop.command()
