@@ -226,7 +226,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         "extras": extras,
         "sources": deepcopy(source_queue),
         "targets": deepcopy(target_queue),
-        "content": deepcopy(content_queue)
+        "content": deepcopy(content_queue),
+        "pipeline": {}
     }
 
     #
@@ -237,7 +238,6 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
     print(f"\n • will run {len(pipe['tasks'])} tasks: [bold]{tasklist}[/]")
 
     for counter, task in enumerate(pipe["tasks"], start=1):
-
         #
         # CONSTRUCT TASK EXECUTABLE
         #
@@ -266,7 +266,6 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                 exec(code, exec_ctx)
             except Exception as e:
                 print("⚠️  [bold red]Task run failed: %s[/]" % e)
-            return
 
         #
         #  PIPELINE SUBLOOP 1: PROCESS EACH SOURCE
@@ -319,7 +318,6 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         #
         # PIPELINE SUBLOOP 2: PROCESS CONTENT COLLECTIONS OR DOCUMENTS
         #
-
         # If there is a target queue waiting, let the last task of the pipe do exporting
         if not source_queue and not (target_queue and counter == pipesize):
             for name, collection in content_queue:
@@ -345,7 +343,6 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         # PIPELINE SUBLOOP 3: PROCESS EACH TARGET
         #
         if target_queue:
-
             for targetname, target in target_queue:
                 print(f"Targeting '{targetname}' ...")
                 for name, collection in content_queue:
