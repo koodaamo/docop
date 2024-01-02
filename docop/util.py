@@ -9,21 +9,6 @@ from yamlstore import Document, Collection
 from collections.abc import Mapping
 from copy import deepcopy
 
-# https://stackoverflow.com/a/43228384
-# only works in a limited fashion
-def merge(dict1, dict2):
-    ''' Return a new dictionary by merging two dictionaries recursively. '''
-
-    result = deepcopy(dict1)
-
-    for key, value in dict2.items():
-        if isinstance(value, Mapping):
-            result[key] = merge(result.get(key) or {}, value)
-        else:
-            result[key] = deepcopy(dict2[key])
-
-    return result
-
 
 def get_module_docstring(path:Path, split:bool=True):
     "get doc string from a python module at path"

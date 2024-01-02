@@ -5,10 +5,10 @@ from importlib.metadata import entry_points
 from importlib.util import find_spec
 from importlib.resources import files
 from copy import deepcopy
-from collections.abc import Mapping
+from collections import ChainMap
 from click import argument, group, option, pass_context, echo, UNPROCESSED
 from yamlstore import Document, Collection
-from .util import merge, task_from_module, get_docs, get_ep_docstring, get_module_docstring
+from .util import task_from_module, get_docs, get_ep_docstring, get_module_docstring
 from rich.console import Console
 from rich import print
 from rich.panel import Panel
@@ -24,20 +24,15 @@ def docop(ctx, config):
     if config.exists():
         cfg = Document(config, title="default")
 
-        # Merge in selected sections from any extra configuration files
-        extra_cfgs = tuple(Path(cfg["dirs"]["configs"]).glob("*.yaml"))
-        for extra in (Document(cfg) for cfg in extra_cfgs):
-            for section in ("sources", "targets", "content", "accounts"):
-                if section in extra:
-                    if section not in cfg:
-                        cfg[section] = deepcopy(extra[section])
-                    else:
-                        if isinstance(extra[section], Mapping):
-                            cfg[section] = merge(cfg[section], extra[section])
+        # Merge any extra configs and make sure we have all the sections
+        extra_conf_paths = tuple(Path(cfg["dirs"]["configs"]).glob("*.yaml"))
+        extra_configs = [Document(cfg_path) for cfg_path in extra_conf_paths]
+        for section in ("sources", "targets", "content", "accounts"):
+            extras = [extra[section] for extra in extra_configs if section in extra]
+            cfg[section] = ChainMap(cfg.get(section, {}), *extras)
     else:
-        subcmd = ctx.invoked_subcommand
-        if subcmd not in ("init", "tasks"):
-            print(f"No configuration file found so don't know where to look for {subcmd}.")
+        if ctx.invoked_subcommand not in ("init", "tasks"):
+            print(f"No configuration file found so don't know where to find {ctx.invoked_subcommand}.")
             sys.exit()
         cfg = None
 
@@ -121,8 +116,8 @@ def tasks(ctx):
 def run(ctx, task_or_pipe, source, content, target, account, extras):
     "Run a task or pipeline."
 
-    if extras:
-        extras = dict((e.split('=')) for e in extras)
+
+    extras = {} if not extras else dict((e.split('=')) for e in extras)
 
     #
     # MAKE SURE WE HAVE ONE AND ONLY ONE UNAMBIGUOUSLY REFERENCED TASK OR PIPE
@@ -303,20 +298,19 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     collection._modified = False
                     doc._modified = False
                     retrieval_ctx["document"] = doc
-                    exec_ctx= merge(retrieval_ctx, config_ctx)
                     try:
-                        exec(code, exec_ctx)
+                        exec(code, retrieval_ctx | config_ctx)
                     except Exception as e:
                         print("⚠️  [bold red]Task run failed: %s[/]" % e)
                         return
                     else:
                         # If the task added documents, we're done with this source.
-                        if exec_ctx['collection'].modified:
+                        if retrieval_ctx['collection'].modified:
                             break
                         # Otherwise, we'll store the doc that the task modified.
-                        if exec_ctx["document"].modified:
+                        if retrieval_ctx["document"].modified:
                             print(f"↳ fetched \'{doc['title']}\' ✅")
-                            collection += exec_ctx["document"]
+                            collection += retrieval_ctx["document"]
                             print(f"↳ result at {doc._path} ✅")
 
                 content_queue.append((sourcename, collection))
@@ -328,9 +322,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
         # If there is a target queue waiting, let the last task of the pipe do exporting
         if not source_queue and not (target_queue and counter == pipesize):
-
             for name, collection in content_queue:
-                print(f"Processing '{name}' content collection")
+                print(f"Processing '{name}' content collection ...")
                 proc_ctx = {"collection": collection}
                 if account:
                     proc_ctx["account"] = account
@@ -338,14 +331,14 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                 for count, (doc_name, doc) in enumerate(collection.items(), start=1):
                     doc._modified = False
                     proc_ctx["document"] = doc
-                    exec_ctx= merge(proc_ctx, config_ctx)
                     try:
-                        exec(code, exec_ctx)
+                        exec(code, proc_ctx | config_ctx)
                     except Exception as e:
                         print(f"⚠️  [bold red]failed to process content[/] '{doc}': %s" % e)
                     else:
-                        if exec_ctx["document"].modified:
-                            exec_ctx["document"].sync()
+                        if proc_ctx["document"].modified:
+                            proc_ctx["document"].sync()
+                            print(f"↳ '{doc['title']}' ✅")
             continue
 
         #
@@ -355,15 +348,12 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
             for targetname, target in target_queue:
                 print(f"Targeting '{targetname}' ...")
-
                 for name, collection in content_queue:
                     print(f" ↳ Processing '{name}' content collection")
-
                     export_ctx = {
                         "collection": collection,
                         "target": target
                     }
-
                     if account:
                         export_ctx["account"] = account
                     else:
@@ -372,11 +362,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                         except KeyError as exc:
                             print(f"⚠️  [bold red]account {exc} not found")
                             return
-
-                    exec_ctx= merge(export_ctx, config_ctx)
-
                     try:
-                        exec(code, exec_ctx)
+                        exec(code, export_ctx | config_ctx)
                     except Exception as exc:
                         print("⚠️  [bold red]task failed[/] %s" % exc)
                         return
