@@ -1,4 +1,4 @@
-## 0.7 (2024-01-03)
+## 0.7.0 (2024-01-03)
 
  - add pipe config and run-time pipe data to task context for #5
  - allow running a pipe without sources, content etc.
