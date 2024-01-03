@@ -153,6 +153,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         pipe = Document(pipe_path, readonly=True)
 
     pipesize = len(pipe["tasks"])
+
+    print("\n")
     console.rule(f"Building a pipe to {pipe['description']}")
 
     #
@@ -168,7 +170,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         source_queue = list(pipe.get("sources", {}).items())
 
     if source_queue:
-        print(" • will fetch resources from %i sources: %s" % (len(source_queue), ", ".join((n[0] for n in source_queue))), end='')
+        print(" • will fetch resources from %i sources: %s" % (len(source_queue), ", ".join((n[0] for n in source_queue))))
 
     #
     # SET UP LOCALLY STORED CONTENT TO PROCESS
@@ -195,7 +197,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
     if content_queue:
         summary = ", ".join((name + f" ({len(c)} documents)" for name, c in content_queue))
-        print(" • will process %i collections: %s" % (len(content_queue), summary), end='')
+        print(" • will process %i collections: %s" % (len(content_queue), summary))
 
     #
     # SET UP TARGETS TO EXPORT TO
@@ -203,7 +205,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
     if target:
         target_queue =[(tgtname, ctx.obj["targets"][tgtname]) for tgtname in target]
     else:
-        target_queue = []
+        target_queue = list(pipe.get("targets", {}).items())
 
     if target_queue:
         print(" • will export content to %i targets: %s" % (len(target_queue), ", ".join((n[0] for n in target_queue))), end='')
@@ -226,7 +228,8 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         "extras": extras,
         "sources": deepcopy(source_queue),
         "targets": deepcopy(target_queue),
-        "content": deepcopy(content_queue)
+        "content": deepcopy(content_queue),
+        "pipeconfig": pipe
     }
 
     #
@@ -234,7 +237,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
     #
 
     tasklist = ' → '.join((task for task in pipe["tasks"]))
-    print(f"\n • will run {len(pipe['tasks'])} tasks: [bold]{tasklist}[/]")
+    print(f"\n • will run {len(pipe['tasks'])} tasks: {tasklist}")
 
     pipe_ctx = {}
 
@@ -255,7 +258,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
             code = spec.loader.get_code(task_eps[task].module)
             docstr, _ = get_ep_docstring(task_eps[task])
 
-        print("\n", Panel(f"\n⚙️  [bold]Task {counter} ({task}) → {docstr}\n"))
+        print("\n", Panel(f"⚙️  {counter}. {task} → {docstr}"))
 
         #
         # HANDLE CASE WHEN NO SOURCES OR CONTENT OR TARGETS ARE PROVIDED
@@ -263,13 +266,15 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         if not (source_queue or content_queue or target_queue):
             exec_ctx= deepcopy(config_ctx)
             exec_ctx["account"] = account
-            exec_ctx["pipeline"] = pipe_ctx
+            exec_ctx["pipedata"] = pipe_ctx
+            exec_ctx["target"] = {}
+
             try:
                 exec(code, exec_ctx)
             except Exception as e:
                 print("⚠️  [bold red]Task run failed: %s[/]" % e)
             else:
-                pipe_ctx = exec_ctx["pipeline"]
+                pipe_ctx = exec_ctx["pipedata"]
 
 
         #
@@ -285,7 +290,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                 retrieval_ctx = {
                     "source": source,
                     "collection": collection,
-                    "pipeline": pipe_ctx
+                    "pipedata": pipe_ctx
                 }
                 if account:
                     retrieval_ctx["account"] = account
@@ -309,7 +314,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                         print("⚠️  [bold red]Task run failed: %s[/]" % e)
                         return
                     else:
-                        pipe_ctx = retrieval_ctx["pipeline"]
+                        pipe_ctx = retrieval_ctx["pipedata"]
                         # If the task added documents, we're done with this source.
                         if retrieval_ctx['collection'].modified:
                             break
@@ -331,7 +336,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                 print(f"Processing '{name}' content collection ...")
                 proc_ctx = {
                     "collection": collection,
-                    "pipeline": pipe_ctx
+                    "pipedata": pipe_ctx
                 }
                 if account:
                     proc_ctx["account"] = account
@@ -344,7 +349,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     except Exception as e:
                         print(f"⚠️  [bold red]failed to process content[/] '{doc}': %s" % e)
                     else:
-                        pipe_ctx = proc_ctx["pipeline"]
+                        pipe_ctx = proc_ctx["pipedata"]
                         if proc_ctx["document"].modified:
                             proc_ctx["document"].sync()
                             print(f"↳ '{doc['title']}' ✅")
@@ -361,7 +366,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     export_ctx = {
                         "collection": collection,
                         "target": target,
-                        "pipeline": pipe_ctx
+                        "pipedata": pipe_ctx
                     }
                     if account:
                         export_ctx["account"] = account
@@ -377,8 +382,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                         print("⚠️  [bold red]task failed[/] %s" % exc)
                         return
                     else:
-                        pipe_ctx = export_ctx["pipeline"]
-                        print(f"↳ exported '{name}' ✅")
+                        pipe_ctx = export_ctx["pipedata"]
 
 
 @docop.command()
