@@ -1,4 +1,4 @@
-# docproc
+# Docop
 
 Simple document processing pipelines for importing, processing and exporting textual content.
 
