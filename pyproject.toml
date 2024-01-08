@@ -1,6 +1,6 @@
 [project]
 name = "docop"
-version = "0.7.0"
+version = "0.7.1-dev"
 authors = [
     {name = "Petri Savolainen", email = "petri@koodaamo.fi"},
 ]

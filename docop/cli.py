@@ -261,21 +261,23 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
         print("\n", Panel(f"⚙️  {counter}. {task} → {docstr}"))
 
         #
+        # SET UP BASE EXECUTION CONTEXT FOR TASK
+        #
+        exec_ctx = {
+            "account": account,
+            "pipedata": pipe_ctx,
+        }
+
+        #
         # HANDLE CASE WHEN NO SOURCES OR CONTENT OR TARGETS ARE PROVIDED
         #
         if not (source_queue or content_queue or target_queue):
-            exec_ctx= deepcopy(config_ctx)
-            exec_ctx["account"] = account
-            exec_ctx["pipedata"] = pipe_ctx
-            exec_ctx["target"] = {}
-
             try:
-                exec(code, exec_ctx)
+                exec(code, config_ctx | exec_ctx)
             except Exception as e:
                 print("⚠️  [bold red]Task run failed: %s[/]" % e)
             else:
                 pipe_ctx = exec_ctx["pipedata"]
-
 
         #
         #  PIPELINE SUBLOOP 1: PROCESS EACH SOURCE
@@ -286,20 +288,15 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
                 print(f"Retrieving content for '{sourcename}'...")
                 collection = Collection(name=sourcename, directory=Path(ctx.obj["dirs"]["content"]) / sourcename, autosync=True)
-
                 retrieval_ctx = {
                     "source": source,
-                    "collection": collection,
-                    "pipedata": pipe_ctx
+                    "collection": collection
                 }
-                if account:
-                    retrieval_ctx["account"] = account
-                else:
+                if not account:
                     try:
                         retrieval_ctx["account"] = ctx.obj["accounts"][source["account"]]
                     except KeyError as exc:
-                        print(f"⚠️  [bold red]account {exc} not found")
-                        return
+                        pass
 
                 for ref in source["resources"]:
                     retrieval_ctx["reference"] = ref
@@ -308,8 +305,13 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     collection._modified = False
                     doc._modified = False
                     retrieval_ctx["document"] = doc
+                    retrieval_ctx.update({
+                        "reference": ref,
+                        "document": doc,
+                        "pipedata": pipe_ctx
+                    })
                     try:
-                        exec(code, retrieval_ctx | config_ctx)
+                        exec(code, config_ctx | exec_ctx | retrieval_ctx)
                     except Exception as e:
                         print("⚠️  [bold red]Task run failed: %s[/]" % e)
                         return
@@ -325,6 +327,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                             print(f"↳ result at {doc._path} ✅")
 
                 content_queue.append((sourcename, collection))
+            # move to the next task
             continue
 
         #
@@ -338,14 +341,12 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                     "collection": collection,
                     "pipedata": pipe_ctx
                 }
-                if account:
-                    proc_ctx["account"] = account
 
                 for count, (doc_name, doc) in enumerate(collection.items(), start=1):
                     doc._modified = False
                     proc_ctx["document"] = doc
                     try:
-                        exec(code, proc_ctx | config_ctx)
+                        exec(code, config_ctx | exec_ctx | proc_ctx)
                     except Exception as e:
                         print(f"⚠️  [bold red]failed to process content[/] '{doc}': %s" % e)
                     else:
@@ -353,6 +354,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                         if proc_ctx["document"].modified:
                             proc_ctx["document"].sync()
                             print(f"↳ '{doc['title']}' ✅")
+            # move to the next task
             continue
 
         #
@@ -368,16 +370,13 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                         "target": target,
                         "pipedata": pipe_ctx
                     }
-                    if account:
-                        export_ctx["account"] = account
-                    else:
+                    if not account:
                         try:
                             export_ctx["account"] = ctx.obj["accounts"][target["account"]]
                         except KeyError as exc:
-                            print(f"⚠️  [bold red]account {exc} not found")
-                            return
+                            pass
                     try:
-                        exec(code, export_ctx | config_ctx)
+                        exec(code, config_ctx | exec_ctx | export_ctx)
                     except Exception as exc:
                         print("⚠️  [bold red]task failed[/] %s" % exc)
                         return
