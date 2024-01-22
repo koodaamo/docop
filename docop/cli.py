@@ -76,8 +76,8 @@ def tasks(ctx):
     "List available tasks."
 
     eps = entry_points()
-    packaged_tasks = eps.get("docop.tasks", None)
-    restricted_tasks = eps.get("docop.tasks.restricted", None)
+    packaged_tasks = eps.select(group="docop.tasks")
+    restricted_tasks = eps.select(group="docop.tasks.restricted")
     if ctx.obj:
         module_tasks = tuple(Path(ctx.obj["dirs"]["tasks"]).glob("*.py"))
     else:
@@ -128,9 +128,9 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
     module_tasks = [Path(tf).stem for tf in Path(ctx.obj["dirs"]["tasks"]).glob("*.py")]
     eps = entry_points()
-    task_eps = {ep.name:ep for ep in eps.get("docop.tasks", ()) + eps.get("docop.tasks.restricted", ())}
-    packaged_tasks = [ep.name for ep in eps.get("docop.tasks", ())]
-    restricted_tasks = [ep.name for ep in eps.get("docop.tasks.restricted", ())]
+    task_eps = {ep.name:ep for ep in eps.select(group="docop.tasks") + eps.select("docop.tasks.restricted")}
+    packaged_tasks = [ep.name for ep in eps.select(group="docop.tasks")]
+    restricted_tasks = [ep.name for ep in eps.select("docop.tasks.restricted")]
     tasknames = module_tasks + packaged_tasks + restricted_tasks 
     pipenames = [Path(pf).stem for pf in Path(ctx.obj["dirs"]["pipes"]).glob("*.yaml")]
 
