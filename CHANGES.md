@@ -1,3 +1,9 @@
+## 0.7.1 (2024-01-23)
+
+ - fix context merging order
+ - don't fail on --help
+ - allow Python 3.10+
+
 ## 0.7.0 (2024-01-03)
 
  - add pipe config and run-time pipe data to task context for #5

@@ -31,7 +31,7 @@ def docop(ctx, config):
             extras = [extra[section] for extra in extra_configs if section in extra]
             cfg[section] = ChainMap(cfg.get(section, {}), *extras)
     else:
-        if ctx.invoked_subcommand not in ("init", "tasks"):
+        if ctx.invoked_subcommand not in ("init", "tasks") and sys.argv[-1] != "--help":
             print(f"No configuration file found so don't know where to find {ctx.invoked_subcommand}.")
             sys.exit()
         cfg = None
