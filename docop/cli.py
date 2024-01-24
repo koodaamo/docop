@@ -128,9 +128,9 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
 
     module_tasks = [Path(tf).stem for tf in Path(ctx.obj["dirs"]["tasks"]).glob("*.py")]
     eps = entry_points()
-    task_eps = {ep.name:ep for ep in eps.select(group="docop.tasks") + eps.select("docop.tasks.restricted")}
+    task_eps = {ep.name:ep for ep in eps.select(group="docop.tasks") + eps.select(group="docop.tasks.restricted")}
     packaged_tasks = [ep.name for ep in eps.select(group="docop.tasks")]
-    restricted_tasks = [ep.name for ep in eps.select("docop.tasks.restricted")]
+    restricted_tasks = [ep.name for ep in eps.select(group="docop.tasks.restricted")]
     tasknames = module_tasks + packaged_tasks + restricted_tasks 
     pipenames = [Path(pf).stem for pf in Path(ctx.obj["dirs"]["pipes"]).glob("*.yaml")]
 

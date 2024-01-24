@@ -1,3 +1,7 @@
+## 0.7.2 (2024-01-24)
+
+ - fix entry point checking
+
 ## 0.7.1 (2024-01-23)
 
  - fix context merging order
