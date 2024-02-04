@@ -1,3 +1,7 @@
+## 0.7.3 (2024-02-04)
+
+ - bump requirements
+
 ## 0.7.2 (2024-01-24)
 
  - fix entry point checking

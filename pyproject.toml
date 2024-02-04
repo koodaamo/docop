@@ -1,6 +1,6 @@
 [project]
 name = "docop"
-version = "0.7.2"
+version = "0.7.3"
 authors = [
     {name = "Petri Savolainen", email = "petri@koodaamo.fi"},
 ]
@@ -16,9 +16,9 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
 ]
 dependencies = [
-    "yamlstore",
-    "click",
-    "rich"
+    "yamlstore >= 0.7.3",
+    "click >= 8.1.7",
+    "rich >= 13.7.0"
 ]
 
 [project.urls]
