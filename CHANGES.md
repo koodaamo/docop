@@ -1,3 +1,7 @@
+## 0.8.0 (2024-10-29)
+
+- take advantage of fastyaml and lazy loading recently added to yamlstore
+
 ## 0.7.3 (2024-02-04)
 
  - bump requirements

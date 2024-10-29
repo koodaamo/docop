@@ -185,7 +185,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
             else:
                 path = content_root / content_path
             if path.is_dir():
-                content_queue.append((path.name, Collection(path)))
+                content_queue.append((path.name, Collection(path, lazy=True)))
             elif path.is_file():
                 if path.parent not in partial_collections:
                     partial_collections[path.parent] = Collection(path.parent, autoload=False)
@@ -287,7 +287,7 @@ def run(ctx, task_or_pipe, source, content, target, account, extras):
                 sourcename, source = source_queue.pop(0)
 
                 print(f"Retrieving content for '{sourcename}'...")
-                collection = Collection(name=sourcename, directory=Path(ctx.obj["dirs"]["content"]) / sourcename, autosync=True)
+                collection = Collection(name=sourcename, directory=Path(ctx.obj["dirs"]["content"]) / sourcename, autosync=True, lazy=True)
                 retrieval_ctx = {
                     "source": source,
                     "collection": collection

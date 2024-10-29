@@ -16,7 +16,7 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
 ]
 dependencies = [
-    "yamlstore >= 0.8.1",
+    "yamlstore >= 0.8.2",
     "click >= 8.1.7",
     "rich >= 13.7.0"
 ]
